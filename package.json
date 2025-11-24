@@ -1,0 +1,23 @@
+{
+  "name": "whatsapp-bot",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp usando whatsapp-web.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server.js",
+    "client": "cd client && npm run dev"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.34.2",
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "cors": "^2.8.5",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+

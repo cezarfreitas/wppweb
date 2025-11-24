@@ -1,0 +1,9 @@
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+*.log
+.env
+.DS_Store
+client/.next/
+client/node_modules/
+
