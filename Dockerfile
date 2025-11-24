@@ -3,10 +3,16 @@ FROM node:18-alpine AS client-builder
 
 WORKDIR /app/client
 
-# Copiar arquivos do cliente
-COPY client/package*.json ./
-RUN npm ci
+# Copiar package.json primeiro
+COPY client/package.json ./
 
+# Copiar package-lock.json se existir (opcional)
+COPY client/package-lock.json* ./
+
+# Instalar dependências (npm install funciona mesmo sem package-lock.json)
+RUN npm install
+
+# Copiar resto dos arquivos do cliente
 COPY client/ ./
 RUN npm run build
 
@@ -15,8 +21,11 @@ FROM node:18-alpine AS server-deps
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --only=production
+COPY package.json ./
+COPY package-lock.json* ./
+
+# Usar npm install se não houver package-lock.json, senão npm ci
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
 
 # Stage 3: Imagem final
 FROM node:18-alpine
