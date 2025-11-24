@@ -98,28 +98,62 @@ function initializeWhatsApp() {
         io.emit('loading', { percent, message });
     });
 
-    whatsappClient.on('message', (msg) => {
+    whatsappClient.on('message', async (msg) => {
         console.log('Mensagem recebida:', msg.from, msg.body);
+        
+        // Para mensagens de grupo, usar 'author' ao invés de 'from'
+        const isGroup = msg.from.endsWith('@g.us');
+        const contactId = isGroup ? msg.author : msg.from;
+        
+        // Obter informações do contato
+        let contact = null;
+        let contactName = null;
+        try {
+            contact = await msg.getContact();
+            contactName = contact.pushname || contact.name || contact.number;
+        } catch (err) {
+            console.error('Erro ao obter contato:', err);
+        }
+        
         io.emit('message_received', {
             from: msg.from,
+            author: msg.author, // Número do autor (em grupos)
+            contactId: contactId, // ID do contato real (autor se for grupo, from se for individual)
+            contactName: contactName, // Nome do contato
             body: msg.body,
             timestamp: msg.timestamp,
             fromMe: msg.fromMe,
             hasMedia: msg.hasMedia,
             type: msg.type,
+            isGroup: isGroup,
             id: msg.id._serialized
         });
     });
 
-    whatsappClient.on('message_create', (msg) => {
+    whatsappClient.on('message_create', async (msg) => {
         if (msg.fromMe) {
             console.log('Mensagem enviada:', msg.to, msg.body);
+            
+            const isGroup = msg.to.endsWith('@g.us');
+            
+            // Obter informações do contato/grupo
+            let contact = null;
+            let contactName = null;
+            try {
+                contact = await msg.getContact();
+                contactName = contact.pushname || contact.name || contact.number;
+            } catch (err) {
+                console.error('Erro ao obter contato:', err);
+            }
+            
             io.emit('message_sent', {
                 to: msg.to,
+                contactName: contactName,
                 body: msg.body,
                 timestamp: msg.timestamp,
                 hasMedia: msg.hasMedia,
                 type: msg.type,
+                isGroup: isGroup,
                 id: msg.id._serialized
             });
         }
