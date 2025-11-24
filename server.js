@@ -12,15 +12,16 @@ const server = http.createServer(app);
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 const PORT = process.env.PORT || 5000;
 
+// Permitir CORS de qualquer origem (para localtunnel)
 const io = socketIo(server, {
     cors: {
-        origin: CLIENT_URL,
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
 
 app.use(cors({
-    origin: CLIENT_URL
+    origin: "*"
 }));
 app.use(express.json());
 
@@ -137,14 +138,25 @@ io.on('connection', (socket) => {
 });
 
 // Rota para servir o frontend (Next.js)
-// Servir arquivos HTML do Next.js
-app.get('*', (req, res, next) => {
-    // Ignorar rotas da API e Socket.io
-    if (req.path.startsWith('/api') || req.path.startsWith('/_next') || req.path.startsWith('/socket.io')) {
-        return next();
-    }
-    // Servir index.html do Next.js
-    res.sendFile(path.join(__dirname, 'client', '.next', 'server', 'pages', 'index.html'));
+const next = require('next');
+const nextApp = next({ 
+    dev: process.env.NODE_ENV !== 'production',
+    dir: path.join(__dirname, 'client')
+});
+const nextHandler = nextApp.getRequestHandler();
+
+// Preparar Next.js e servir
+nextApp.prepare().then(() => {
+    app.get('*', (req, res) => {
+        // Ignorar rotas da API e Socket.io - deixar o Express lidar
+        if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+            return res.status(404).json({ error: 'Not found' });
+        }
+        // Servir páginas do Next.js
+        return nextHandler(req, res);
+    });
+}).catch(err => {
+    console.error('Erro ao preparar Next.js:', err);
 });
 
 server.listen(PORT, () => {
