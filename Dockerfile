@@ -52,12 +52,14 @@ COPY --from=server-deps /app/node_modules ./node_modules
 
 # Copiar código do servidor
 COPY server.js ./
-COPY package*.json ./
+COPY package.json ./
+COPY package-lock.json* ./
 
-# Copiar build standalone do Next.js
-COPY --from=client-builder /app/client/.next/standalone ./
-COPY --from=client-builder /app/client/.next/static ./client/.next/static
+# Copiar build do Next.js
+COPY --from=client-builder /app/client/.next ./client/.next
 COPY --from=client-builder /app/client/public ./client/public
+COPY --from=client-builder /app/client/node_modules ./client/node_modules
+COPY --from=client-builder /app/client/package.json ./client/
 
 # Criar diretório para sessões do WhatsApp
 RUN mkdir -p .wwebjs_auth
