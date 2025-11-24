@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.wwebjs_auth
+.wwebjs_cache
+.git
+.gitignore
+.env
+.env.local
+.DS_Store
+*.log
+client/.next
+client/node_modules
+client/.env.local
+README.md
+.vscode
+.idea
+

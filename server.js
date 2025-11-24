@@ -2,20 +2,31 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const path = require('path');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 
 const app = express();
 const server = http.createServer(app);
+
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+const PORT = process.env.PORT || 5000;
+
 const io = socketIo(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: CLIENT_URL,
         methods: ["GET", "POST"]
     }
 });
 
-app.use(cors());
+app.use(cors({
+    origin: CLIENT_URL
+}));
 app.use(express.json());
+
+// Servir arquivos estáticos do Next.js
+app.use('/_next/static', express.static(path.join(__dirname, 'client/.next/static')));
+app.use(express.static(path.join(__dirname, 'client/public')));
 
 let whatsappClient = null;
 let qrCodeData = null;
@@ -125,9 +136,18 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 5000;
+// Rota para servir o frontend (Next.js)
+app.get('*', (req, res, next) => {
+    // Ignorar rotas da API
+    if (req.path.startsWith('/api') || req.path.startsWith('/_next') || req.path.startsWith('/socket.io')) {
+        return next();
+    }
+    // Servir index.html do Next.js standalone
+    res.sendFile(path.join(__dirname, 'client', 'index.html'));
+});
+
 server.listen(PORT, () => {
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
-    console.log(`📱 Acesse http://localhost:3000 para ver o QR code`);
+    console.log(`📱 Acesse ${CLIENT_URL} para ver o QR code`);
 });
 
