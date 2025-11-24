@@ -137,22 +137,14 @@ io.on('connection', (socket) => {
 });
 
 // Rota para servir o frontend (Next.js)
-const next = require('next');
-const nextApp = next({ 
-    dev: false, 
-    dir: path.join(__dirname, 'client')
-});
-const nextHandler = nextApp.getRequestHandler();
-
-// Preparar Next.js
-nextApp.prepare().then(() => {
-    app.get('*', (req, res) => {
-        // Ignorar rotas da API e Socket.io
-        if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
-            return res.status(404).json({ error: 'Not found' });
-        }
-        return nextHandler(req, res);
-    });
+// Servir arquivos HTML do Next.js
+app.get('*', (req, res, next) => {
+    // Ignorar rotas da API e Socket.io
+    if (req.path.startsWith('/api') || req.path.startsWith('/_next') || req.path.startsWith('/socket.io')) {
+        return next();
+    }
+    // Servir index.html do Next.js
+    res.sendFile(path.join(__dirname, 'client', '.next', 'server', 'pages', 'index.html'));
 });
 
 server.listen(PORT, () => {
