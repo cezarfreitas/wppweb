@@ -1,5 +1,5 @@
 # Stage 1: Build do cliente Next.js
-FROM node:18-alpine AS client-builder
+FROM node:20-alpine AS client-builder
 
 WORKDIR /app/client
 
@@ -17,18 +17,18 @@ COPY client/ ./
 RUN npm run build
 
 # Stage 2: Instalar dependências do servidor
-FROM node:18-alpine AS server-deps
+FROM node:20-alpine AS server-deps
 
 WORKDIR /app
 
 COPY package.json ./
 COPY package-lock.json* ./
 
-# Usar npm install se não houver package-lock.json, senão npm ci
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
+    # Sempre usar npm install para garantir que as dependências estejam sincronizadas
+    RUN npm install --omit=dev
 
 # Stage 3: Imagem final
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Instalar dependências do sistema necessárias para Puppeteer
 RUN apk add --no-cache \
