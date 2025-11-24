@@ -5,11 +5,21 @@ import { io, Socket } from 'socket.io-client';
 
 type Status = 'disconnected' | 'qr' | 'authenticated' | 'ready' | 'auth_failure' | 'loading';
 
+interface MessageLog {
+  timestamp: string;
+  type: 'sent' | 'received';
+  data: any;
+}
+
 export default function Home() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [status, setStatus] = useState<Status>('disconnected');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState({ percent: 0, message: '' });
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [messageLogs, setMessageLogs] = useState<MessageLog[]>([]);
 
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
@@ -60,6 +70,22 @@ export default function Home() {
       setStatus('loading');
     });
 
+    newSocket.on('message_received', (data: any) => {
+      setMessageLogs(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        type: 'received',
+        data
+      }]);
+    });
+
+    newSocket.on('message_sent', (data: any) => {
+      setMessageLogs(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        type: 'sent',
+        data
+      }]);
+    });
+
     return () => {
       newSocket.close();
     };
@@ -69,6 +95,40 @@ export default function Home() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
     fetch(`${API_URL}/api/initialize`, { method: 'POST' })
       .then(() => console.log('Cliente WhatsApp inicializado'));
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phoneNumber || !message) return;
+    
+    setSending(true);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+    
+    try {
+      const response = await fetch(`${API_URL}/api/send-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, message })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage('');
+        console.log('Mensagem enviada:', data);
+      } else {
+        alert(`Erro: ${data.error}`);
+      }
+    } catch (error) {
+      alert('Erro ao enviar mensagem');
+      console.error(error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const clearLogs = () => {
+    setMessageLogs([]);
   };
 
   const getStatusMessage = () => {
@@ -90,6 +150,126 @@ export default function Home() {
     }
   };
 
+  // Se estiver conectado, mostrar dashboard
+  if (status === 'ready') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+            <div className="flex justify-between items-center">
+              <h1 className="text-3xl font-bold text-gray-900">
+                WhatsApp Web.js - Dashboard
+              </h1>
+              <div className="flex items-center space-x-3">
+                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                <p className="text-sm font-medium text-gray-700">Conectado</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Formulário de Envio */}
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Enviar Mensagem
+              </h2>
+              
+              <form onSubmit={handleSendMessage} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Número (com código do país)
+                  </label>
+                  <input
+                    type="text"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="5511999999999"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Exemplo: 5511999999999 (Brasil)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mensagem
+                  </label>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Digite sua mensagem..."
+                    rows={4}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                >
+                  {sending ? 'Enviando...' : 'Enviar Mensagem'}
+                </button>
+              </form>
+            </div>
+
+            {/* Log de Mensagens */}
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Log de Mensagens
+                </h2>
+                <button
+                  onClick={clearLogs}
+                  className="text-sm text-red-600 hover:text-red-700 font-medium"
+                >
+                  Limpar
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {messageLogs.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">
+                    Nenhuma mensagem ainda...
+                  </p>
+                ) : (
+                  messageLogs.slice().reverse().map((log, index) => (
+                    <div
+                      key={index}
+                      className={`p-3 rounded-lg border ${
+                        log.type === 'sent'
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-blue-50 border-blue-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className={`text-xs font-semibold ${
+                          log.type === 'sent' ? 'text-green-700' : 'text-blue-700'
+                        }`}>
+                          {log.type === 'sent' ? '📤 ENVIADA' : '📥 RECEBIDA'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <pre className="text-xs bg-gray-900 text-green-400 p-2 rounded overflow-x-auto">
+                        {JSON.stringify(log.data, null, 2)}
+                      </pre>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Tela de login/QR Code
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
       <main className="w-full max-w-md mx-auto p-8">
@@ -105,7 +285,6 @@ export default function Home() {
 
           <div className="flex items-center justify-center space-x-3">
             <div className={`w-3 h-3 rounded-full ${
-              status === 'ready' ? 'bg-green-500' :
               status === 'qr' ? 'bg-yellow-500' :
               status === 'auth_failure' ? 'bg-red-500' :
               'bg-gray-500'
@@ -140,14 +319,6 @@ export default function Home() {
               </div>
               <p className="text-xs text-center text-gray-600">
                 {loading.message}
-              </p>
-            </div>
-          )}
-
-          {status === 'ready' && (
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <p className="text-center text-green-800 font-medium">
-                🎉 Conectado com sucesso!
               </p>
             </div>
           )}

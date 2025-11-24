@@ -98,6 +98,33 @@ function initializeWhatsApp() {
         io.emit('loading', { percent, message });
     });
 
+    whatsappClient.on('message', (msg) => {
+        console.log('Mensagem recebida:', msg.from, msg.body);
+        io.emit('message_received', {
+            from: msg.from,
+            body: msg.body,
+            timestamp: msg.timestamp,
+            fromMe: msg.fromMe,
+            hasMedia: msg.hasMedia,
+            type: msg.type,
+            id: msg.id._serialized
+        });
+    });
+
+    whatsappClient.on('message_create', (msg) => {
+        if (msg.fromMe) {
+            console.log('Mensagem enviada:', msg.to, msg.body);
+            io.emit('message_sent', {
+                to: msg.to,
+                body: msg.body,
+                timestamp: msg.timestamp,
+                hasMedia: msg.hasMedia,
+                type: msg.type,
+                id: msg.id._serialized
+            });
+        }
+    });
+
     whatsappClient.initialize().catch(err => {
         console.error('Erro ao inicializar:', err);
     });
@@ -116,6 +143,40 @@ app.post('/api/initialize', (req, res) => {
         res.json({ message: 'Cliente WhatsApp inicializado' });
     } else {
         res.json({ message: 'Cliente já está inicializado' });
+    }
+});
+
+app.post('/api/send-message', async (req, res) => {
+    const { phoneNumber, message } = req.body;
+
+    if (!phoneNumber || !message) {
+        return res.status(400).json({ error: 'Número e mensagem são obrigatórios' });
+    }
+
+    if (!whatsappClient || clientStatus !== 'ready') {
+        return res.status(400).json({ error: 'WhatsApp não está conectado' });
+    }
+
+    try {
+        // Formatar número para o formato do WhatsApp
+        const chatId = phoneNumber.includes('@c.us') ? phoneNumber : `${phoneNumber}@c.us`;
+        
+        // Enviar mensagem
+        const sentMessage = await whatsappClient.sendMessage(chatId, message);
+        
+        console.log('Mensagem enviada com sucesso:', chatId);
+        
+        res.json({ 
+            success: true, 
+            message: 'Mensagem enviada com sucesso',
+            messageId: sentMessage.id._serialized
+        });
+    } catch (error) {
+        console.error('Erro ao enviar mensagem:', error);
+        res.status(500).json({ 
+            error: 'Erro ao enviar mensagem', 
+            details: error.message 
+        });
     }
 });
 
