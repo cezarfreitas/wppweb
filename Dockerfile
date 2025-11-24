@@ -60,6 +60,9 @@ COPY --from=client-builder /app/client/.next ./client/.next
 COPY --from=client-builder /app/client/public ./client/public
 COPY --from=client-builder /app/client/node_modules ./client/node_modules
 COPY --from=client-builder /app/client/package.json ./client/
+COPY --from=client-builder /app/client/next.config.ts ./client/
+COPY --from=client-builder /app/client/tsconfig.json ./client/
+COPY --from=client-builder /app/client/src ./client/src
 
 # Criar diretório para sessões do WhatsApp
 RUN mkdir -p .wwebjs_auth
